@@ -1,0 +1,43 @@
+{
+    "name": "prayer",
+    "version": "1.0.2",
+    "description": "Gerenciador de Impressão Via Socket",
+    "main": "main.js",
+    "scripts": {
+      "start": "electron .",
+      "dev": "nodemon",
+      "rebuild": "electron-rebuild",
+      "build": "electron-builder",
+      "postinstall": "electron-builder install-app-deps"
+    },
+    "keywords": [],
+    "author": "joao.silva",
+    "license": "ISC",
+    "dependencies": {
+      "ws": "^8.18.0"
+    },
+    "devDependencies": {
+      "electron": "^32.1.2",
+      "electron-builder": "^25.0.5",
+      "electron-rebuild": "^3.2.9",
+      "nodemon": "^3.1.6",
+      "ws": "^8.18.0"
+    },
+    "build": {
+      "files": [
+        "src/**/*",       
+        "src/img/**/*",
+        "main.js"
+      ],
+      "appId": "com.prayer.app",
+      "productName": "PrayerApp",
+      "win": {
+        "target": "nsis",
+        "icon": "src/img/print.png"
+      },
+      "directories": {
+        "buildResources": "build"
+      }
+    }
+  }
+  
