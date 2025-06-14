@@ -5,6 +5,7 @@ const { exec } = require("child_process");
 const { gerarNomeUnico } = require("./arquivos");
 const { verificarCompartilhamento } = require("./sistema");
 const { erro } = require("../core/notificacao");
+const iconv = require("iconv-lite");
 const { print } = require('pdf-to-printer');
 
 
@@ -24,11 +25,12 @@ async function imprimirCuponTermica(base64, impressora) {
     // Envia via printer.printDirect
     try {
       await print(caminhoPDF, {
-        printer:impressora,
+        printer: impressora,
         scale: "fit",
-        silent: true
+        silent: true,
+        monochrome: true
       }).then(console.log);
-    }finally {
+    } finally {
       // Remove o arquivo temporário
       fs.unlink(caminhoPDF);
     }
@@ -39,29 +41,39 @@ async function imprimirCuponTermica(base64, impressora) {
   }
 }
 
-function imprimirTexto(dados) {
+async function imprimirTexto(dados) {
   const { impressora, msg } = dados;
-  return new Promise(async (resolve) => {
-    if (!impressora || !msg) {
-      erro("Impressora ou mensagem não informada!");
-      return resolve({ status: "error", message: "Dados inválidos" });
-    }
+  console.log("Imprimindo IMpresora...", impressora);
+  console.log("Imprimindo msg...", msg);
+  if (!impressora || !msg) {
+    console.error("Impressora ou mensagem não informada!");
+    return { status: "error", message: "Dados inválidos" };
+  }
 
-    const compartilhada = await verificarCompartilhamento(impressora);
-    if (!compartilhada) {
-      return resolve({ status: "error", message: "Impressora não compartilhada" });
-    }
+  const compartilhada = await verificarCompartilhamento(impressora);
+  if (!compartilhada) {
+    return { status: "error", message: "Impressora não compartilhada" };
+  }
 
-    const filePath = path.join(os.tmpdir(), gerarNomeUnico("txt"));
-    fs.writeFileSync(filePath, msg, "utf8");
+  // converte msg (UTF-8) para CP850
+  const buffer = iconv.encode(msg, "CP850");
+  const filePath = path.join(os.tmpdir(), gerarNomeUnico("txt"));
+  fs.writeFileSync(filePath, buffer);
 
-    exec(`copy "${filePath}" \\\\localhost\\"${impressora}"`, (error) => {
-      if (error) erro(`Erro ao imprimir: ${error.message}`);
+  return new Promise((resolve) => {
+    const printerPath = `\\\\localhost\\${impressora}`;
+    const cmd = `copy /b "${filePath}" "${printerPath}"`;
+
+    exec(cmd, (error) => {
+      if (error) {
+        console.error("Erro ao imprimir:", error.message);
+        return resolve({ status: "error", message: error.message });
+      }
+      resolve({ status: "success", message: "Impresso com sucesso", acao: "imprimir" });
     });
-
-    resolve({ status: "success", message: "Impresso com sucesso", acao: "imprimir" });
   });
 }
+
 
 module.exports = {
   imprimirTexto,

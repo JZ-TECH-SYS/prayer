@@ -1,3 +1,5 @@
+// src/core/socket.js
+
 const WebSocket = require("ws");
 const { gerenciarAcaoImpressao } = require("./printer");
 const { sucesso, alerta, erro } = require("./notificacao");
@@ -22,18 +24,22 @@ async function startWebSocketServer() {
         dados = JSON.parse(msg);
       } catch (err) {
         erro("JSON inválido recebido.");
-        ws.send(JSON.stringify({ status: "error", message: "JSON inválido!" }));
-        return;
+        return ws.send(JSON.stringify({ status: "error", message: "JSON inválido!" }));
       }
 
       if (!dados.acao) {
         erro("Ação não especificada.");
-        ws.send(JSON.stringify({ status: "error", message: "Ação não especificada!" }));
-        return;
+        return ws.send(JSON.stringify({ status: "error", message: "Ação não especificada!" }));
       }
 
-      const resposta = await gerenciarAcaoImpressao(dados);
-      ws.send(resposta);
+      try {
+        const respostaObj = await gerenciarAcaoImpressao(dados);
+        const respostaStr = typeof respostaObj === "string" ? respostaObj : JSON.stringify(respostaObj);
+        ws.send(respostaStr);
+      } catch (e) {
+        console.error("Erro ao processar ação:", e);
+        ws.send(JSON.stringify({ status: "error", message: e.message || "Erro interno" }));
+      }
     });
 
     ws.on("close", () => {

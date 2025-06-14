@@ -14,7 +14,9 @@
     "author": "joao.silva",
     "license": "ISC",
     "dependencies": {
+        "iconv-lite": "^0.6.3",
         "pdf-to-printer": "^5.6.0",
+        "puppeteer": "^24.9.0",
         "ws": "^8.18.0"
     },
     "devDependencies": {

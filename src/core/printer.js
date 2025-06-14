@@ -10,7 +10,14 @@ async function imprimirHTML(dados) {
   console.log("msg", msg);
   return new Promise((resolve) => {
     win.webContents.on("did-finish-load", () => {
-      win.webContents.print({ silent: true, printBackground: true, deviceName: impressora }, (success, err) => {
+      win.webContents.print({ 
+        silent: true, 
+        printBackground: true, 
+        deviceName: impressora,
+        margins: {
+          marginType: 'none'
+        }
+      }, (success, err) => {
         if (!success) erro(`Erro ao imprimir: ${err}`);
         win.close();
         resolve(JSON.stringify({
