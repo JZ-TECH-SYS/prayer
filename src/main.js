@@ -1,7 +1,9 @@
-const { app, Tray, Menu } = require("electron");
+const { app, Tray, Menu, shell } = require("electron");
 const path = require("path");
 const { erro } = require("./core/notificacao");
 const { startWebSocketServer, stopWebSocketServer } = require("./core/socket");
+const { logger, getLogDir } = require("./core/logger");
+const { openLogViewer } = require("./core/logViewer");
 
 let tray = null;
 let webSocketServerRunning = false;
@@ -20,6 +22,8 @@ function criarTray() {
   const menu = Menu.buildFromTemplate([
     { label: "Iniciar", click: startWebSocketServer },
     { label: "Parar", click: stopWebSocketServer },
+    { label: "Ver Logs", click: openLogViewer },
+  { label: "Abrir pasta de logs", click: () => shell.openPath(getLogDir()) },
     { type: "separator" },
     { label: "Sair", click: () => { stopWebSocketServer(); app.quit(); } }
   ]);
@@ -30,11 +34,13 @@ function criarTray() {
 
 app.whenReady().then(() => {
   criarTray();
+  logger.info("Aplicação iniciada");
   webSocketServerRunning = startWebSocketServer();
 });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin" && !webSocketServerRunning) {
+    logger.info("Encerrando aplicação (todas as janelas fechadas)");
     app.quit();
   }
 });
@@ -42,6 +48,7 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   if (!webSocketServerRunning) {
     erro("Serviço de impressão foi encerrado.");
+    logger.warn("Serviço de impressão encerrado");
     stopWebSocketServer();
   }
 });

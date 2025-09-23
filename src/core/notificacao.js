@@ -1,5 +1,6 @@
 const path = require('path');
 const { Notification } = require('electron');
+const { logger } = require('./logger');
 
 function criarNotificacao(titulo, mensagem, icon) {
     new Notification({
@@ -11,14 +12,17 @@ function criarNotificacao(titulo, mensagem, icon) {
 
 function sucesso(mensagem) {
     criarNotificacao('Sucesso', mensagem, 'img/sucesso.png');
+    try { logger.info('Notificação Sucesso', { mensagem }); } catch (_) {}
 }
 
 function erro(mensagem) {
     criarNotificacao('Erro', mensagem, 'img/error.png');
+    try { logger.error('Notificação Erro', { mensagem }); } catch (_) {}
 }
 
 function alerta(mensagem) {
     criarNotificacao('Alerta', mensagem, 'img/alert.png'); 
+    try { logger.warn('Notificação Alerta', { mensagem }); } catch (_) {}
 }
 
 
