@@ -24,13 +24,34 @@ async function listarImpressoras() {
   try {
     let nomes = [];
     if (os.platform() === "win32") {
-      const ps = `powershell -NoProfile -Command "Get-Printer | Select-Object -ExpandProperty Name"`;
-      const { stdout } = await execPromise(ps);
-      nomes = stdout.split("\n").map(l => l.trim()).filter(Boolean);
+      // Usar método seguro que evita problemas com Get-Printer
+      try {
+        // Primeira tentativa: PowerShell com WMI (mais confiável)
+        const ps = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-WmiObject -Class Win32_Printer | ForEach-Object { $_.Name }"`;
+        const { stdout } = await execPromise(ps, { timeout: 10000 });
+        nomes = stdout.split("\n").map(l => l.trim()).filter(Boolean);
+      } catch (psError) {
+        logger.warn("Falha no PowerShell WMI, tentando método alternativo", { error: psError.message });
+        
+        // Segunda tentativa: usar a função já corrigida do módulo impressoras
+        try {
+          const { getPrinters } = require("../helpers/impressoras");
+          const impressoras = getPrinters();
+          nomes = impressoras.map(p => p.Name).filter(Boolean);
+        } catch (moduleError) {
+          logger.warn("Falha no módulo impressoras, usando fallback básico", { error: moduleError.message });
+          
+          // Terceira tentativa: fallback mais simples
+          const fallbackPs = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-WmiObject -Class Win32_Printer | Select-Object -ExpandProperty Name"`;
+          const { stdout } = await execPromise(fallbackPs, { timeout: 5000 });
+          nomes = stdout.split("\n").map(l => l.trim()).filter(Boolean);
+        }
+      }
     } else {
       const { stdout } = await execPromise("lpstat -p");
       nomes = stdout.split("\n").map(l => l.trim()).filter(l => l && l !== "printer");
     }
+    
     logger.info("Impressoras listadas", { total: nomes.length });
 
     return JSON.stringify({
