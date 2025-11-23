@@ -1,54 +1,54 @@
 {
-    "name": "prayer",
-    "version": "1.0.2",
-    "description": "Gerenciador de Impressão Via Socket",
-    "main": "./src/main.js",
-    "scripts": {
-        "start": "electron .",
-        "dev": "nodemon",
-        "rebuild": "electron-rebuild",
-        "build": "electron-builder",
-        "postinstall": "electron-builder install-app-deps"
+  "name": "prayer",
+  "version": "1.0.3",
+  "description": "Gerenciador de Impressão Via Socket",
+  "main": "./src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "nodemon",
+    "rebuild": "electron-rebuild",
+    "build": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [],
+  "author": "joao.silva",
+  "license": "ISC",
+  "dependencies": {
+    "electron-updater": "^6.3.1",
+    "iconv-lite": "^0.6.3",
+    "pdf-to-printer": "^5.6.0",
+    "puppeteer": "^24.9.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^39.2.3",
+    "electron-builder": "^25.0.5",
+    "electron-rebuild": "^3.2.9",
+    "nodemon": "^3.1.6",
+    "ws": "^8.18.0"
+  },
+  "build": {
+    "files": [
+      "src/**/*",
+      "src/img/**/*",
+      "main.js"
+    ],
+    "appId": "com.prayer.app",
+    "productName": "PrayerApp",
+    "win": {
+      "target": "nsis",
+      "icon": "src/img/print.png"
     },
-    "keywords": [],
-    "author": "joao.silva",
-    "license": "ISC",
-    "dependencies": {
-        "electron-updater": "^6.3.1",
-        "iconv-lite": "^0.6.3",
-        "pdf-to-printer": "^5.6.0",
-        "puppeteer": "^24.9.0",
-        "ws": "^8.18.0"
-    },
-    "devDependencies": {
-        "electron": "^39.2.3",
-        "electron-builder": "^25.0.5",
-        "electron-rebuild": "^3.2.9",
-        "nodemon": "^3.1.6",
-        "ws": "^8.18.0"
-    },
-    "build": {
-        "files": [
-            "src/**/*",
-            "src/img/**/*",
-            "main.js"
-        ],
-        "appId": "com.prayer.app",
-        "productName": "PrayerApp",
-        "win": {
-            "target": "nsis",
-            "icon": "src/img/print.png"
-        },
-        "publish": [
-            {
-                "provider": "github",
-                "owner": "JZ-TECH-SYS",
-                "repo": "prayer",
-                "releaseType": "release"
-            }
-        ],
-        "directories": {
-            "buildResources": "build"
-        }
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "JZ-TECH-SYS",
+        "repo": "prayer",
+        "releaseType": "release"
+      }
+    ],
+    "directories": {
+      "buildResources": "build"
     }
+  }
 }

@@ -51,6 +51,7 @@ npm start
 - `npm run build` gera instaladores via `electron-builder`.
 - O workflow `.github/workflows/release.yml` publica installers (`dist/*.exe`) e `latest.yml` em um release versionado (`v1.0.2`, por exemplo).
 - O auto-update consome exatamente esses artefatos, portanto mantenha o `productName`/`appId` e o repositório configurados em `package.json` → `build.publish`.
+- Para subir versão, use `node src/scripts/bumpVersion.js` (incrementa patch) antes de abrir o release/tag correspondente.
 
 ## 🧠 Fluxo do aplicativo
 
