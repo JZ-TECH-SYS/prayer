@@ -8,13 +8,13 @@ let ipcRegistered = false;
 let streamListener = null; // listener atual do live
 
 function openLogViewer() {
-    if (win && !win.isDestroyed()) {
-        win.focus();
-        return win;
-    }
+  if (win && !win.isDestroyed()) {
+    win.focus();
+    return win;
+  }
 
   // Garante handlers IPC registrados apenas uma vez
-    if (!ipcRegistered) {
+  if (!ipcRegistered) {
     ipcMain.handle('request-initial-log', () => {
       try {
         const file = getLogFilePath();
@@ -61,21 +61,21 @@ function openLogViewer() {
       } catch (_) { }
     });
 
-  // live é sempre o arquivo do dia; sem handler de switch
+    // live é sempre o arquivo do dia; sem handler de switch
 
-        ipcRegistered = true;
-    }
+    ipcRegistered = true;
+  }
 
   win = new BrowserWindow({
-        width: 900,
-        height: 600,
-        webPreferences: {
+    width: 900,
+    height: 600,
+    webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload', 'logViewerPreload.js'),
-        },
-        title: "Logs - Prayer",
-    });
+    },
+    title: "Logs - Prayer",
+  });
 
   // Carrega HTML local (mais confiável)
   const htmlPath = path.join(__dirname, '..', 'assets', 'html', 'logViewer.html');
@@ -89,7 +89,7 @@ function openLogViewer() {
         win.webContents.send('log-file', file);
         win.webContents.send('log-today', file);
       }
-    } catch (_) {}
+    } catch (_) { }
   });
 
   // stream em tempo real (arquivo atual)
@@ -98,12 +98,12 @@ function openLogViewer() {
   };
   logger.on('log', streamListener);
 
-    win.on('closed', () => {
-  if (streamListener) logger.off('log', streamListener);
-        win = null;
-    });
+  win.on('closed', () => {
+    if (streamListener) logger.off('log', streamListener);
+    win = null;
+  });
 
-    return win;
+  return win;
 }
 
 module.exports = { openLogViewer };

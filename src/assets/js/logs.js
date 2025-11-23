@@ -18,7 +18,7 @@ function scheduleFlush() {
   if (flushScheduled) return;
   flushScheduled = true;
   // usa requestAnimationFrame quando disponível para suavizar
-  const schedule = window.requestAnimationFrame || function(cb){ return setTimeout(cb, 16); };
+  const schedule = window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); };
   schedule(() => {
     const items = buffer.splice(0, buffer.length);
     for (const line of items) prepend(line);
@@ -52,8 +52,8 @@ function setBlockTopFirst(block) {
   applySearchFilter();
 }
 
-function escapeHtml(s){
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
 }
 
 function highlight(text, query) {

@@ -1,92 +1,112 @@
 # PrayerApp
 
-**PrayerApp** é uma aplicação desktop desenvolvida em **Electron** que roda em segundo plano no computador do usuário e se comunica com uma interface web via **WebSocket** para listar impressoras e enviar comandos de impressão diretamente para elas.
+Desktop agent em Electron para orquestrar impressões locais via WebSocket e utilitários embarcados (tray, log viewer e tester de impressoras). A aplicação roda minimizada na bandeja do Windows, inicia um servidor na porta `8080` e mantém auto-update integrado ao GitHub Releases.
 
-## Funcionalidades Principais
+## 🚀 Principais recursos
 
-- **WebSocket**: Comunicação em tempo real entre o app desktop e a interface web para envio e recebimento de comandos de impressão.
-- **Listagem de Impressoras**: A aplicação lista todas as impressoras conectadas ao computador, permitindo que o usuário selecione qual deseja utilizar.
-- **Impressão Direta**: Envia comandos de impressão diretamente para a impressora selecionada, suportando impressoras Zebra (ZPL) e impressoras térmicas (ESC/POS), utilizando comandos RAW. Além disso, também é possível imprimir conteúdo HTML com CSS, oferecendo maior flexibilidade para formatação de documentos e etiquetas.
+- **Gerenciamento pela bandeja**: iniciar/parar o servidor, abrir ferramentas, consultar versão instalada e disparar busca de atualizações.
+- **Servidor WebSocket** (`src/core/socket.js`): responde a ações de listagem/ impressão, inclusive comandos RAW (ZPL, EPL, ESC/POS) e HTML renderizado.
+- **Ferramentas visuais**: log viewer e printer tester com tema escuro, agora carregando CSS/JS dedicados em `src/assets/css` e `src/assets/js`.
+- **Auto-update**: `electron-updater` configurado para consumir releases do repositório `JZ-TECH-SYS/prayer`, garantindo que o instalador gerado pelo `electron-builder` corresponda ao nome esperado pelo atualizador.
+- **Logs estruturados**: toda a telemetria é gravada em `%TEMP%/prayer` via `src/core/logger.js`, utilizada pelo tray e log viewer.
 
-- **Geração de Instalador (EXE)**: Utiliza o **electron-builder** para empacotar a aplicação e gerar um instalador executável para distribuição em máquinas Windows.
+## 🧱 Estrutura em destaque
 
-## Tecnologias Utilizadas
+```text
+src/
+├─ main.js                # Orquestrador (tray + servidor + auto-update)
+├─ core/
+│  ├─ trayController.js   # Menu/bandeja desacoplado
+│  ├─ updateManager.js    # Wrapper do electron-updater
+│  ├─ logger.js | socket.js | notificacao.js | printer*.js ...
+├─ assets/
+│  ├─ html/printerTester.html
+│  ├─ css/printerTester.css
+│  └─ js/printerTester.js
+└─ utils/                 # Helpers de arquivos, janelas e sistema
+```
 
-- **Electron**: Framework para criar aplicações desktop utilizando tecnologias web (HTML, CSS, JavaScript).
+## ⚙️ Requisitos
 
-## Como Rodar o Projeto
+- Windows 10/11 (64 bits)
+- Node.js 18+
+- Yarn ou npm (scripts usam npm por padrão)
 
-1. Clone o repositório:
+## 📦 Instalação e desenvolvimento
 
-   ```bash
-   git clone <URL do repositório>
+```bash
+git clone https://github.com/JZ-TECH-SYS/prayer.git
+cd prayer
+npm install
 
-   npm install
-
-
-   npm run dev
-
-
-   ## caso queria fazer build 
-
-   npm run build
+# Ambiente de desenvolvimento (Electron + nodemon)
 
 
-## Exemplo de Uso
+# Executar app diretamente
+npm start
+```
 
-### Conectando ao app após ele estar rodando:
+## 🛠️ Build & Release
 
-Para se conectar ao aplicativo via WebSocket, use o seguinte código:
+- `npm run build` gera instaladores via `electron-builder`.
+- O workflow `.github/workflows/release.yml` publica installers (`dist/*.exe`) e `latest.yml` em um release versionado (`v1.0.2`, por exemplo).
+- O auto-update consome exatamente esses artefatos, portanto mantenha o `productName`/`appId` e o repositório configurados em `package.json` → `build.publish`.
+
+## 🧠 Fluxo do aplicativo
+
+1. `main.js` garante instância única, cria a bandeja através de `trayController` e sobe o servidor WebSocket.
+2. `updateManager` monitora releases do GitHub, atualiza o menu de versão e dispara notificações quando um pacote é baixado.
+3. O tray oferece ações rápidas (logs, teste de impressora, abrir pasta de logs, about, sair).
+4. Ferramentas adicionais (log viewer e printer tester) são janelas leves com assets estáticos em `src/assets` + preload scripts em `src/core/preload`.
+
+## 🌐 API WebSocket
 
 ```javascript
-var ws = new WebSocket('ws://127.0.0.1:8080');
+const ws = new WebSocket('ws://127.0.0.1:8080');
 
-ws.onmessage = function (event) {
-    var data = JSON.parse(event.data);
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
     console.log('onmessage', data);
 };
 ```
 
-### Pegando a lista de impressoras:
-
-Para solicitar a lista de impressoras disponíveis, envie a seguinte mensagem via WebSocket:
+### Listar impressoras
 
 ```javascript
-ws.send(
-    JSON.stringify({
-        acao: 'todasImpressoras'
-    })
-);
+ws.send(JSON.stringify({
+    acao: 'todasImpressoras'
+}));
 ```
 
-### Enviando impressão direta:
-
-Você pode enviar comandos de impressão diretamente para a impressora, seja ZPL, EPL ou ESC/POS. Use a ação `"imprimir"`:
+### Imprimir comandos RAW
 
 ```javascript
-ws.send(
-    JSON.stringify({
-        acao: 'imprimir',
-        impresora: 'MP-4200 TH',  // Nome da impressora
-        msg: "código de impressora aqui"  // Código ZPL, EPL ou ESC/POS
-    })
-);
+ws.send(JSON.stringify({
+    acao: 'imprimir',
+    impresora: 'MP-4200 TH',
+    msg: '^XA...^XZ' // ZPL/EPL/ESC-POS
+}));
 ```
 
-### Enviando HTML para impressão
-
-Caso queira enviar HTML, formate o conteúdo para o tamanho correto da impressora térmica ou impressora que estiver usando. Use a ação `"imprimirHTML"`:
+### Imprimir HTML
 
 ```javascript
-ws.send(
-    JSON.stringify({
-        acao: 'imprimirHTML',
-        impresora: 'MP-4200 TH',  // Nome da impressora
-        msg: '<h1>João Vitor Nascimento da Silva</h1>'  // Conteúdo HTML
-    })
-);
+ws.send(JSON.stringify({
+    acao: 'imprimirHTML',
+    impresora: 'MP-4200 TH',
+    msg: '<h1>Pedido #123</h1>'
+}));
 ```
 
-### Observações:
-- **ZPL, EPL e ESC/POS**: Use a ação `"imprimir"` para enviar comandos diretamente para impressoras que suportam esses formatos.
-- **HTML com CSS**: Use a ação `"imprimirHTML"` para imprimir conteúdo formatado com HTML/CSS. Certifique-se de ajustar o tamanho do conteúdo para a impressora que estiver utilizando.
+> **Dicas**
+>
+> - A ação `imprimir` aceita qualquer payload RAW compatível com a impressora alvo.
+> - A ação `imprimirHTML` renderiza HTML/CSS usando Chromium — ajuste a largura para impressoras térmicas.
+
+## 🔍 Troubleshooting rápido
+
+- **Porta 8080 ocupada**: encerre outros serviços ou altere a porta em `src/core/socket.js`.
+- **Atualização não inicia**: confirme que existe um release `vX.Y.Z` com `latest.yml` e `.exe` correspondentes.
+- **Impressoras não aparecem**: execute o Printer Tester, use `Ctrl+R` para forçar atualização e verifique permissões de spooler.
+
+Contribuições e melhorias são bem-vindas — mantenha estilos e módulos alinhados à nova estrutura modular.

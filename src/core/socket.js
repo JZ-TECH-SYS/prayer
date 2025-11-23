@@ -30,10 +30,10 @@ async function diagnosePort(port = 8080) {
 async function startWebSocketServer() {
   if (isRunning) {
     sucesso("Servidor já em execução.");
-  logger.warn("Tentativa de iniciar servidor WebSocket duplicado", {
-    porta: 8080,
-    status: "JÁ_EXECUTANDO"
-  });
+    logger.warn("Tentativa de iniciar servidor WebSocket duplicado", {
+      porta: 8080,
+      status: "JÁ_EXECUTANDO"
+    });
     return isRunning;
   }
 
@@ -48,7 +48,7 @@ async function startWebSocketServer() {
         code: e.code,
         dica: "Verifique se outra instância do Prayer está aberta ou finalize o processo que usa a porta."
       });
-  diagnosePort(8080);
+      diagnosePort(8080);
       return false;
     }
     logger.error("Erro inesperado ao criar servidor WebSocket", {
@@ -66,37 +66,37 @@ async function startWebSocketServer() {
 
   wss.on("connection", (ws) => {
     sucesso("Cliente conectado!");
-  logger.info("Nova conexão WebSocket estabelecida", {
-    clientesConectados: wss.clients.size,
-    timestamp: new Date().toISOString()
-  });
+    logger.info("Nova conexão WebSocket estabelecida", {
+      clientesConectados: wss.clients.size,
+      timestamp: new Date().toISOString()
+    });
 
     ws.on("message", async (msg) => {
       let dados;
       try {
         dados = JSON.parse(msg);
-  logger.info("Nova requisição recebida via WebSocket", {
-    acao: dados.acao,
-    impressora: dados.impressora,
-    tamanhoMsg: dados.msg ? dados.msg.length : 0,
-    timestamp: new Date().toISOString()
-  });
+        logger.info("Nova requisição recebida via WebSocket", {
+          acao: dados.acao,
+          impressora: dados.impressora,
+          tamanhoMsg: dados.msg ? dados.msg.length : 0,
+          timestamp: new Date().toISOString()
+        });
       } catch (err) {
         erro("JSON inválido recebido.");
-  logger.error("Formato JSON inválido na mensagem recebida", { 
-    erro: err.message,
-    dadosBrutos: String(msg).substring(0, 200) + "...",
-    tamanho: String(msg).length
-  });
+        logger.error("Formato JSON inválido na mensagem recebida", {
+          erro: err.message,
+          dadosBrutos: String(msg).substring(0, 200) + "...",
+          tamanho: String(msg).length
+        });
         return ws.send(JSON.stringify({ status: "error", message: "JSON inválido!" }));
       }
 
       if (!dados.acao) {
         erro("Ação não especificada.");
-  logger.warn("Mensagem sem ação especificada", {
-    camposRecebidos: Object.keys(dados),
-    tamanhoMensagem: JSON.stringify(dados).length
-  });
+        logger.warn("Mensagem sem ação especificada", {
+          camposRecebidos: Object.keys(dados),
+          tamanhoMensagem: JSON.stringify(dados).length
+        });
         return ws.send(JSON.stringify({ status: "error", message: "Ação não especificada!" }));
       }
 
@@ -109,33 +109,33 @@ async function startWebSocketServer() {
 
         const respostaObj = await gerenciarAcaoImpressao(dados);
         const respostaStr = typeof respostaObj === "string" ? respostaObj : JSON.stringify(respostaObj);
-  logger.info("Resposta enviada ao cliente", {
-    acao: dados.acao,
-    status: respostaObj.status || "indefinido",
-    tamanhoResposta: JSON.stringify(respostaObj).length
-  });
+        logger.info("Resposta enviada ao cliente", {
+          acao: dados.acao,
+          status: respostaObj.status || "indefinido",
+          tamanhoResposta: JSON.stringify(respostaObj).length
+        });
         ws.send(respostaStr);
       } catch (e) {
         console.error("Erro ao processar ação:", e);
-  logger.error("Falha crítica no processamento da ação", { 
-    acao: dados.acao,
-    erro: e && e.message,
-    stack: e && e.stack,
-    dadosEntrada: {
-      impressora: dados.impressora,
-      tamanhoMsg: dados.msg ? dados.msg.length : 0
-    }
-  });
+        logger.error("Falha crítica no processamento da ação", {
+          acao: dados.acao,
+          erro: e && e.message,
+          stack: e && e.stack,
+          dadosEntrada: {
+            impressora: dados.impressora,
+            tamanhoMsg: dados.msg ? dados.msg.length : 0
+          }
+        });
         ws.send(JSON.stringify({ status: "error", message: e.message || "Erro interno" }));
       }
     });
 
     ws.on("close", () => {
       alerta("Cliente desconectado.");
-  logger.info("Cliente desconectado do WebSocket", {
-    clientesRestantes: wss.clients.size,
-    timestamp: new Date().toISOString()
-  });
+      logger.info("Cliente desconectado do WebSocket", {
+        clientesRestantes: wss.clients.size,
+        timestamp: new Date().toISOString()
+      });
     });
   });
 
@@ -157,10 +157,10 @@ function stopWebSocketServer() {
     }
     isRunning = false;
     erro("Servidor WebSocket parado.");
-  logger.warn("Servidor WebSocket finalizado", {
-    motivo: "STOP_REQUEST",
-    timestamp: new Date().toISOString()
-  });
+    logger.warn("Servidor WebSocket finalizado", {
+      motivo: "STOP_REQUEST",
+      timestamp: new Date().toISOString()
+    });
   }
 }
 

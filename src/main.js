@@ -1,157 +1,102 @@
-const { app, Tray, Menu, shell } = require("electron");
+const { app, shell, dialog } = require("electron");
 const path = require("path");
-const { erro } = require("./core/notificacao");
 const { startWebSocketServer, stopWebSocketServer } = require("./core/socket");
 const { logger, getLogDir } = require("./core/logger");
 const { openLogViewer } = require("./core/logViewer");
 const { openPrinterTester } = require("./core/printerTester");
+const { createTrayController } = require("./core/trayController");
+const { createUpdateManager } = require("./core/updateManager");
 
-let tray = null;
 let webSocketServerRunning = false;
-app.setAppUserModelId('com.prayer.app');
+let lastDownloadedUpdate = null;
 
-// Função para atualizar o status visual do tray
-function atualizarStatusTray() {
-  if (!tray) return;
-  
-  const status = webSocketServerRunning ? "🟢 Online" : "🔴 Offline";
-  const porta = webSocketServerRunning ? "8080" : "N/A";
-  
-  tray.setToolTip(`🙏 Prayer System - Gerenciador de Impressão
-Status: ${status}
-Porta: ${porta}
-💡 Duplo clique = Teste de Impressão`);
+const isDev = !app.isPackaged;
+const appVersion = app.getVersion();
+const iconPath = path.join(__dirname, "img/print.png");
+app.setAppUserModelId("com.prayer.app");
 
-  // Atualizar menu com status atual
-  const menu = Menu.buildFromTemplate([
-    { 
-      label: webSocketServerRunning ? "🟢 Servidor Online" : "🔴 Servidor Offline", 
-      enabled: false,
-      type: "normal"
-    },
-    { type: "separator" },
-    { 
-      label: "🚀 Iniciar Servidor", 
-      click: () => {
-        const sucesso = startWebSocketServer();
-        webSocketServerRunning = sucesso;
-        setTimeout(() => {
-          atualizarStatusTray();
-          if (sucesso) {
-            mostrarNotificacao("🚀 Servidor Iniciado", "Prayer System está online na porta 8080");
-          }
-        }, 1000);
-      },
-      enabled: !webSocketServerRunning,
-      toolTip: "Iniciar o servidor WebSocket na porta 8080"
-    },
-    { 
-      label: "⏹️ Parar Servidor", 
-      click: () => {
-        stopWebSocketServer();
-        webSocketServerRunning = false;
-        setTimeout(() => {
-          atualizarStatusTray();
-          mostrarNotificacao("⏹️ Servidor Parado", "Prayer System foi desconectado");
-        }, 1000);
-      },
-      enabled: webSocketServerRunning,
-      toolTip: "Parar o servidor WebSocket"
-    },
-    { type: "separator" },
-    { 
-      label: "📊 Ver Logs", 
-      click: () => {
-        logger.info("📊 Abrindo visualizador de logs via tray");
-        openLogViewer();
-      },
-      toolTip: "Abrir visualizador de logs em tempo real"
-    },
-    { 
-      label: "🖨️ Teste de Impressão", 
-      click: () => {
-        logger.info("🖨️ Abrindo teste de impressão via tray");
-        openPrinterTester();
-      },
-      toolTip: "Abrir ferramenta de teste de impressoras"
-    },
-    { 
-      label: "📁 Pasta de Logs", 
-      click: () => {
-        logger.info("📁 Abrindo pasta de logs via tray");
-        shell.openPath(getLogDir());
-      },
-      toolTip: "Abrir pasta contendo arquivos de log"
-    },
-    { type: "separator" },
-    { 
-      label: "ℹ️ Sobre o Prayer", 
-      click: () => {
-        const { dialog } = require('electron');
-        const versao = require('../package.json').version || '1.0.0';
-        dialog.showMessageBox({
-          type: 'info',
-          title: '🙏 Prayer System',
-          message: 'Prayer - Gerenciador de Impressão',
-          detail: `Versão: ${versao}\nDesenvolvido por: JZ-TECH-SYS\nBranch: clickjoias\n\n🚀 Sistema de impressão avançado\n🖨️ Suporte a múltiplas impressoras\n📊 Logs em tempo real\n🎨 Interface moderna`,
-          icon: path.join(__dirname, "img/print.png")
-        });
-        logger.info("ℹ️ Informações do sistema exibidas");
-      },
-      toolTip: "Informações sobre o Prayer System"
-    },
-    { 
-      label: "❌ Sair", 
-      click: () => { 
-        logger.info("❌ Encerrando aplicação via menu do tray");
-        mostrarNotificacao("👋 Até logo!", "Prayer System foi encerrado");
-        setTimeout(() => {
-          stopWebSocketServer(); 
-          app.quit(); 
-        }, 500);
-      },
-      toolTip: "Encerrar o Prayer System"
-    }
-  ]);
+// Tray controller
+const trayController = createTrayController({
+  appVersion,
+  iconPath,
+  onStartServer: () => handleServerToggle("start"),
+  onStopServer: () => handleServerToggle("stop"),
+  onOpenLogViewer: () => {
+    logger.info("📊 Abrindo visualizador de logs via tray");
+    openLogViewer();
+  },
+  onOpenPrinterTester: () => {
+    logger.info("🖨️ Abrindo teste de impressão via tray");
+    openPrinterTester();
+  },
+  onOpenLogFolder: () => {
+    logger.info("📁 Abrindo pasta de logs via tray");
+    shell.openPath(getLogDir());
+  },
+  onShowAbout: () => showAboutDialog(),
+  onQuit: () => handleQuitRequest(),
+  onRequestUpdate: () => handleManualUpdateCheck(),
+  onInstallUpdate: () => promptInstalarAtualizacao(lastDownloadedUpdate),
+});
 
-  tray.setContextMenu(menu);
-}
+// Update manager
+const updateManager = createUpdateManager({ logger, isDev });
 
-// Garante que apenas uma instância do app rode
+updateManager.on("state", (state) => {
+  trayController.setUpdateState(state);
+});
+
+updateManager.on("checking", () => {
+  showTrayNotification("🔍 Buscando atualização", "Verificando versão mais recente no GitHub");
+});
+
+updateManager.on("update-available", (info) => {
+  logger.info("⬇️ Atualização disponível", info);
+  showTrayNotification("⬇️ Atualização encontrada", `Versão ${info.version} será baixada em segundo plano`);
+});
+
+updateManager.on("update-not-available", () => {
+  logger.info("✅ Nenhuma atualização disponível");
+  showTrayNotification("✅ Você está atualizado", `Versão atual: ${appVersion}`);
+});
+
+updateManager.on("error", (error) => {
+  logger.error("❌ Erro no auto-update", { error });
+  showTrayNotification("❌ Falha no update", error?.message || "Erro desconhecido");
+});
+
+updateManager.on("update-downloaded", (info) => {
+  lastDownloadedUpdate = info;
+  logger.info("✅ Atualização baixada", info);
+  showTrayNotification("✅ Atualização pronta", "Clique para instalar a nova versão");
+  promptInstalarAtualizacao(info);
+});
+
+// Garantir instância única
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
   return;
 }
 
-function criarTray() {
-  tray = new Tray(path.join(__dirname, "img/print.png"));
-
-  // Adicionar evento de clique duplo para ação rápida (abrir teste de impressão)
-  tray.on('double-click', () => {
-    logger.info("Duplo clique no tray - abrindo teste de impressão");
-    openPrinterTester();
-  });
-
-  // Adicionar evento de clique simples para atualizar status
-  tray.on('click', () => {
-    atualizarStatusTray();
-  });
-
-  // Configurar menu inicial
-  atualizarStatusTray();
-}
-
 app.whenReady().then(() => {
-  criarTray();
+  trayController.init();
   logger.info("🚀 Prayer System iniciado - Tray criado com ícones");
-  
-  // Iniciar servidor e atualizar status do tray
+
   webSocketServerRunning = startWebSocketServer();
-  setTimeout(() => {
-    atualizarStatusTray();
-    logger.info("📊 Status do tray atualizado");
-  }, 1000);
+  trayController.setServerRunning(webSocketServerRunning);
+  logger.info("📊 Status do tray atualizado");
+
+  updateManager.init();
+  trayController.setUpdateState(updateManager.getState());
+
+  if (updateManager.isEnabled()) {
+    setTimeout(() => {
+      updateManager
+        .checkForUpdates()
+        .catch((error) => logger.error("❌ Falha ao buscar atualização automática", { error }));
+    }, 4000);
+  }
 });
 
 app.on("window-all-closed", () => {
@@ -169,19 +114,99 @@ app.on("before-quit", () => {
   logger.info("👋 Prayer System encerrado");
 });
 
-// Função para mostrar notificação do sistema quando disponível
-function mostrarNotificacao(titulo, mensagem, icone = null) {
-  if (tray) {
-    // No Windows, usar balloon (tooltip expandido)
-    try {
-      tray.displayBalloon({
-        title: titulo,
-        content: mensagem,
-        icon: icone || path.join(__dirname, "img/print.png")
-      });
-    } catch (error) {
-      // Fallback: apenas log se balloon não funcionar
-      logger.info(`💬 ${titulo}: ${mensagem}`);
+function handleServerToggle(action) {
+  if (action === "start") {
+    const success = startWebSocketServer();
+    webSocketServerRunning = success;
+    trayController.setServerRunning(webSocketServerRunning);
+    if (success) {
+      showTrayNotification("🚀 Servidor Iniciado", "Prayer System está online na porta 8080");
     }
+    return success;
+  }
+
+  stopWebSocketServer();
+  webSocketServerRunning = false;
+  trayController.setServerRunning(false);
+  showTrayNotification("⏹️ Servidor Parado", "Prayer System foi desconectado");
+  return true;
+}
+
+function handleManualUpdateCheck() {
+  if (!updateManager.isEnabled()) {
+    showTrayNotification("ℹ️ Atualização", "Disponível apenas em builds instalados");
+    logger.warn("⚠️ Tentativa de update manual em modo desenvolvimento");
+    return;
+  }
+
+  updateManager
+    .checkForUpdates({ manual: true })
+    .catch((error) => {
+      logger.error("❌ Falha ao buscar atualização manual", { error });
+      showTrayNotification("❌ Falha ao buscar atualização", error?.message || "Verifique sua conexão");
+    });
+}
+
+function showAboutDialog() {
+  dialog.showMessageBox({
+    type: "info",
+    title: "🙏 Prayer System",
+    message: "Prayer - Gerenciador de Impressão",
+    detail: `Versão: ${appVersion}\nDesenvolvido por: JZ-TECH-SYS\nBranch: clickjoias\n\n🚀 Sistema de impressão avançado\n🖨️ Suporte a múltiplas impressoras\n📊 Logs em tempo real\n🎨 Interface moderna`,
+    icon: iconPath,
+  });
+  logger.info("ℹ️ Informações do sistema exibidas");
+}
+
+function handleQuitRequest() {
+  logger.info("❌ Encerrando aplicação via menu do tray");
+  showTrayNotification("👋 Até logo!", "Prayer System foi encerrado");
+  setTimeout(() => {
+    stopWebSocketServer();
+    app.quit();
+  }, 500);
+}
+
+function promptInstalarAtualizacao(info) {
+  if (!info && !lastDownloadedUpdate) {
+    return;
+  }
+
+  const versao = info?.version || lastDownloadedUpdate?.version || "nova";
+  const response = dialog.showMessageBoxSync({
+    type: "question",
+    buttons: ["Instalar agora", "Mais tarde"],
+    defaultId: 0,
+    cancelId: 1,
+    title: "Atualização pronta",
+    message: `A versão ${versao} já foi baixada. Deseja instalar agora?`,
+    detail: "O aplicativo reiniciará para concluir a instalação.",
+    icon: iconPath,
+  });
+
+  if (response === 0) {
+    logger.info("🚀 Instalando atualização", { versao });
+    showTrayNotification("🚀 Atualizando", "Aplicativo será reiniciado");
+    setImmediate(() => updateManager.installUpdate());
+  } else {
+    logger.info("⏸️ Atualização adiada", { versao });
+  }
+}
+
+function showTrayNotification(titulo, mensagem, icone = iconPath) {
+  const trayInstance = trayController.getTrayInstance?.();
+  if (!trayInstance) {
+    logger.info(`💬 ${titulo}: ${mensagem}`);
+    return;
+  }
+
+  try {
+    trayInstance.displayBalloon({
+      title: titulo,
+      content: mensagem,
+      icon: icone,
+    });
+  } catch (_) {
+    logger.info(`💬 ${titulo}: ${mensagem}`);
   }
 }

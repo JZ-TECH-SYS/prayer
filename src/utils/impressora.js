@@ -72,8 +72,8 @@ async function imprimirCuponTermica(base64, impressora) {
 
     const alvo = resolvePrinter(impressora);
     if (!alvo || !alvo.queueName) {
-      logger.error("Impressora não localizada no sistema", { 
-        impressoraSolicitada: impressora, 
+      logger.error("Impressora não localizada no sistema", {
+        impressoraSolicitada: impressora,
         dadosEncontrados: alvo,
         tipo: "PDF"
       });
@@ -113,7 +113,7 @@ async function imprimirCuponTermica(base64, impressora) {
       // Remove o arquivo temporário
       try {
         fs.unlinkSync(caminhoPDF);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     return {
@@ -122,7 +122,7 @@ async function imprimirCuponTermica(base64, impressora) {
       acao: "imprimirPDF",
     };
   } catch (e) {
-    logger.error("Falha na impressão do cupom térmico PDF", { 
+    logger.error("Falha na impressão do cupom térmico PDF", {
       erro: e && e.message,
       impressora,
       stack: e && e.stack,
@@ -188,11 +188,11 @@ async function imprimirTexto(dados) {
     const destino = alvo.sharePath || `\\\\localhost\\${alvo.queueName}`;
     const cmd = `copy /b "${filePath}" "${destino}"`;
 
-    logger.info("Iniciando envio para impressora", { 
+    logger.info("Iniciando envio para impressora", {
       impressora,
       cmd,
       destino,
-      queueName: alvo.queueName 
+      queueName: alvo.queueName
     });
 
     exec(cmd, (error, stdout, stderr) => {
@@ -210,14 +210,14 @@ async function imprimirTexto(dados) {
         // Fallback opcional: tentar print.exe pela fila (para texto simples)
         if (alvo.queueName) {
           const fallback = `print /d:"${alvo.queueName}" "${filePath}"`;
-          logger.warn("Executando método alternativo de impressão", { 
+          logger.warn("Executando método alternativo de impressão", {
             impressora,
             comandoFallback: fallback,
             metodo: "print.exe",
             motivo: "copy /b falhou"
           });
           return exec(fallback, (err2, out2, errOut2) => {
-            
+
             if (err2) {
               logger.error("Todos os métodos de impressão falharam", {
                 impressora,
@@ -228,7 +228,7 @@ async function imprimirTexto(dados) {
               });
               return resolve({ status: "error", message: error.message });
             }
-            logger.info("Impressão concluída via método alternativo", { 
+            logger.info("Impressão concluída via método alternativo", {
               impressora,
               metodo: "print.exe",
               saida: out2,
@@ -241,14 +241,14 @@ async function imprimirTexto(dados) {
             });
           });
         }
-        
+
         return resolve({
           status: "error",
           message: `Falha de impressão: ${error.message}`,
         });
       }
-      
-      logger.info("Impressão concluída com sucesso", { 
+
+      logger.info("Impressão concluída com sucesso", {
         impressora,
         queueName: alvo.queueName,
         stdout: stdout.trim(),

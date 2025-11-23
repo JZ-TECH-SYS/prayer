@@ -25,7 +25,7 @@ function openPrinterTester() {
           const { clearPrintersCache } = require("../helpers/impressoras");
           clearPrintersCache();
         }
-        
+
         const list = getPrinters();
         return { status: "success", data: list };
       } catch (e) {
@@ -41,7 +41,7 @@ function openPrinterTester() {
         if (_cache) {
           logger.info("Cache busting aplicado para impressão de texto", { cacheKey: _cache, printer });
         }
-        
+
         const res = await imprimirTexto({ impressora: printer, msg: text });
         return typeof res === "string" ? JSON.parse(res) : res;
       } catch (e) {
@@ -57,7 +57,7 @@ function openPrinterTester() {
         if (_cache) {
           logger.info("Cache busting aplicado para impressão HTML", { cacheKey: _cache, printer });
         }
-        
+
         const tmp = createWindowHTML(html);
         return await new Promise((resolve) => {
           tmp.webContents.on("did-finish-load", () => {
@@ -70,7 +70,7 @@ function openPrinterTester() {
               },
               (success, err) => {
                 logger[success ? "info" : "error"]("Resultado print-html (UI)", { success, err });
-                try { tmp.close(); } catch (_) {}
+                try { tmp.close(); } catch (_) { }
                 resolve({
                   status: success ? "success" : "error",
                   message: success ? "Impresso!" : err,

@@ -12,17 +12,17 @@ function runPS(ps) {
   try {
     // Criar um arquivo temporário com nome mais único para evitar conflitos
     const tempFile = path.join(os.tmpdir(), `prayer-ps-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.ps1`);
-    
+
     // Escrever o script no arquivo temporário
     fs.writeFileSync(tempFile, ps, { encoding: "utf8" });
-    
-    const result = execSync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${tempFile}"`, { 
+
+    const result = execSync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${tempFile}"`, {
       encoding: "utf8",
       timeout: 15000,
       maxBuffer: 1024 * 1024,
       stdio: ['pipe', 'pipe', 'ignore'] // Ignorar stderr
     });
-    
+
     // Limpar arquivo temporário de forma mais segura
     setTimeout(() => {
       try {
@@ -33,7 +33,7 @@ function runPS(ps) {
         // Ignorar erro ao limpar arquivo temporário
       }
     }, 1000);
-    
+
     return result;
   } catch (error) {
     console.error("Erro ao executar PowerShell:", error.message);
@@ -45,20 +45,20 @@ function getPrintersViaPowerShellSimple() {
   try {
     // Usar apenas PowerShell sem arquivos temporários para evitar conflitos
     const psCommand = `Get-WmiObject -Class Win32_Printer | ForEach-Object { Write-Output "$($_.Name)|$($_.ShareName)|$($_.DriverName)|$($_.PortName)|$($_.Shared)|$($_.WorkOffline)" }`;
-    
+
     const result = execSync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${psCommand}"`, {
       encoding: "utf8",
       timeout: 10000,
       maxBuffer: 512 * 1024,
       stdio: ['ignore', 'pipe', 'ignore'] // Ignorar stdin e stderr
     });
-    
+
     const lines = result.split('\n')
       .map(line => line.trim())
       .filter(line => line && line.includes('|'));
-    
+
     const printers = [];
-    
+
     for (const line of lines) {
       const parts = line.split('|').map(p => (p || '').trim());
       if (parts.length >= 4 && parts[0]) {
@@ -72,7 +72,7 @@ function getPrintersViaPowerShellSimple() {
         });
       }
     }
-    
+
     return printers;
   } catch (error) {
     console.error("Erro ao obter impressoras via PowerShell simples:", error.message);
@@ -88,14 +88,14 @@ if ($printers) {
 } else {
     Write-Output "[]"
 }`;
-    
+
     const out = runPS(ps);
     const cleanOut = out.replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim();
-    
+
     if (!cleanOut || cleanOut === '[]') {
       return [];
     }
-    
+
     const list = JSON.parse(cleanOut);
     return Array.isArray(list) ? list : [list];
   } catch (error) {
@@ -113,7 +113,7 @@ function getPrinters() {
 
   let lastError = null;
   let result = [];
-  
+
   // Primeira tentativa: usar PowerShell simples (sem arquivos temporários)
   try {
     result = getPrintersViaPowerShellSimple();
@@ -148,11 +148,11 @@ function getPrinters() {
       timeout: 5000,
       stdio: ['ignore', 'pipe', 'ignore']
     });
-    
+
     const names = result.split('\n')
       .map(line => line.trim())
       .filter(name => name);
-    
+
     if (names.length > 0) {
       const basicPrinters = names.map(name => ({
         Name: name,
@@ -162,7 +162,7 @@ function getPrinters() {
         Shared: false,
         WorkOffline: false
       }));
-      
+
       printersCache = basicPrinters;
       cacheTimestamp = now;
       return basicPrinters;
@@ -182,7 +182,7 @@ function getPrinters() {
   if (lastError) {
     console.error("Todas as tentativas de obter impressoras falharam. Último erro:", lastError.message);
   }
-  
+
   return [];
 }
 
@@ -275,29 +275,29 @@ function getPrintersSeguro() {
         // Limpar cache para forçar nova tentativa
         printersCache = null;
         cacheTimestamp = 0;
-        
+
         // Delay pequeno antes de tentar novamente
         const start = Date.now();
         while (Date.now() - start < 100) {
           // Busy wait de 100ms
         }
-        
+
         return getPrinters();
       } catch (secondError) {
         console.error("Segunda tentativa também falhou:", secondError.message);
-        
+
         // Retornar lista básica de emergência se disponível
         if (printersCache && printersCache.length > 0) {
           return printersCache;
         }
-        
+
         // Lista de emergência com impressoras comuns
         return [
           { Name: "Microsoft Print to PDF", ShareName: null, DriverName: "Microsoft Print To PDF", PortName: "PORTPROMPT:", Shared: false, WorkOffline: false }
         ];
       }
     }
-    
+
     // Para outros tipos de erro, apenas logar e retornar vazio
     console.error("Erro ao obter impressoras:", error.message);
     return [];

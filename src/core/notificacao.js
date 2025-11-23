@@ -12,22 +12,22 @@ function criarNotificacao(titulo, mensagem, icon) {
 
 function sucesso(mensagem) {
     criarNotificacao('Sucesso', mensagem, 'img/sucesso.png');
-    try { logger.info('Notificação Sucesso', { mensagem }); } catch (_) {}
+    try { logger.info('Notificação Sucesso', { mensagem }); } catch (_) { }
 }
 
 function erro(mensagem) {
     criarNotificacao('Erro', mensagem, 'img/error.png');
-    try { logger.error('Notificação Erro', { mensagem }); } catch (_) {}
+    try { logger.error('Notificação Erro', { mensagem }); } catch (_) { }
 }
 
 function alerta(mensagem) {
-    criarNotificacao('Alerta', mensagem, 'img/alert.png'); 
-    try { logger.warn('Notificação Alerta', { mensagem }); } catch (_) {}
+    criarNotificacao('Alerta', mensagem, 'img/alert.png');
+    try { logger.warn('Notificação Alerta', { mensagem }); } catch (_) { }
 }
 
 
-function validarImpressora(impressora){
-    if(!impressora){
+function validarImpressora(impressora) {
+    if (!impressora) {
         erro('Impressora não informada!');
         return { status: "error", message: "Impressora não informada!" };
     }

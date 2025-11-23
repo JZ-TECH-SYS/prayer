@@ -57,14 +57,13 @@ class Logger extends EventEmitter {
   write(level, message, meta) {
     const timestamp = this.formatBR();
     let line;
-    
+
     // Formatação especial para logs de impressão
     if (meta && this.isPrintLog(message, meta)) {
       line = this.formatPrintLog(timestamp, level, message, meta);
     } else {
-      line = `[${timestamp}] [${level.toUpperCase()}] ${this.safeStringify(message)}${
-        meta ? " " + this.safeStringify(meta) : ""
-      }\n`;
+      line = `[${timestamp}] [${level.toUpperCase()}] ${this.safeStringify(message)}${meta ? " " + this.safeStringify(meta) : ""
+        }\n`;
     }
 
     try {
@@ -83,7 +82,7 @@ class Logger extends EventEmitter {
 
   isPrintLog(message, meta) {
     const printKeywords = [
-      'impressão', 'imprimir', 'print', 'copy /b', 'Arquivo RAW', 
+      'impressão', 'imprimir', 'print', 'copy /b', 'Arquivo RAW',
       'comando de impressão', 'enviada com sucesso'
     ];
     const msgStr = String(message).toLowerCase();
@@ -91,7 +90,7 @@ class Logger extends EventEmitter {
   }
 
   formatPrintLog(timestamp, level, message, meta) {
-    const separator = "=" .repeat(80);
+    const separator = "=".repeat(80);
     let formattedLog = `\n${separator}\n`;
     formattedLog += `[${timestamp}] [${level.toUpperCase()}] IMPRESSÃO\n`;
     formattedLog += `${separator}\n`;

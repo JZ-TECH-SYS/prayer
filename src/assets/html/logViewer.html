@@ -8,13 +8,29 @@
   </head>
   <body>
     <header class="p-2 border-bottom d-flex gap-2 align-items-center">
-      <button id="openFile" class="btn btn-sm btn-outline-light">Abrir arquivo atual</button>
-      <select id="filePicker" class="form-select form-select-sm" style="max-width:260px"></select>
+      <button id="openFile" class="btn btn-sm btn-outline-light">
+        Abrir arquivo atual
+      </button>
+      <select
+        id="filePicker"
+        class="form-select form-select-sm"
+        style="max-width: 260px"></select>
       <button id="clear" class="btn btn-sm btn-outline-warning">Limpar</button>
       <span id="file" class="ms-2 small opacity-75"></span>
-      <div class="ms-auto d-flex align-items-center gap-2" style="min-width:320px;">
-        <input id="search" class="form-control form-control-sm" type="text" placeholder="Buscar nos logs..." />
-        <button id="clearSearch" class="btn btn-sm btn-outline-secondary" title="Limpar busca">×</button>
+      <div
+        class="ms-auto d-flex align-items-center gap-2"
+        style="min-width: 320px">
+        <input
+          id="search"
+          class="form-control form-control-sm"
+          type="text"
+          placeholder="Buscar nos logs..." />
+        <button
+          id="clearSearch"
+          class="btn btn-sm btn-outline-secondary"
+          title="Limpar busca">
+          ×
+        </button>
         <span id="searchCount" class="small opacity-75"></span>
       </div>
     </header>
