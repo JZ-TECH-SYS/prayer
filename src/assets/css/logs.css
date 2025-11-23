@@ -1,0 +1,9 @@
+body { font-family: Consolas, monospace; margin: 0; background: #0b0f0c; color: #c8facc; }
+header { background: #0f1511; padding: 8px 12px; display:flex; gap:8px; align-items:center; position: sticky; top: 0; z-index: 1; }
+button, select { background:#132018; color:#c8facc; border:1px solid #2f5c3f; padding:6px 10px; cursor:pointer; }
+#content { padding: 10px; white-space: pre-wrap; word-break: break-word; height: calc(100vh - 50px); overflow: auto; }
+.level-INFO { color:#39FF14; }
+.level-WARN { color:#FFD166; }
+.level-ERROR { color:#FF6B6B; }
+.level-DEBUG { color:#6EC1FF; }
+mark.hl { background: #3a633f; color: #fff; padding: 0 2px; border-radius: 2px; }
