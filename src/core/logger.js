@@ -55,9 +55,17 @@ class Logger extends EventEmitter {
   }
 
   write(level, message, meta) {
-    const line = `[${this.formatBR()}] [${level.toUpperCase()}] ${this.safeStringify(message)}${
-      meta ? " " + this.safeStringify(meta) : ""
-    }\n`;
+    const timestamp = this.formatBR();
+    let line;
+    
+    // Formatação especial para logs de impressão
+    if (meta && this.isPrintLog(message, meta)) {
+      line = this.formatPrintLog(timestamp, level, message, meta);
+    } else {
+      line = `[${timestamp}] [${level.toUpperCase()}] ${this.safeStringify(message)}${
+        meta ? " " + this.safeStringify(meta) : ""
+      }\n`;
+    }
 
     try {
       fs.appendFileSync(this.getLogFilePath(), line, { encoding: "utf8" });
@@ -71,6 +79,56 @@ class Logger extends EventEmitter {
 
     // emite evento para visualizadores
     this.emit("log", { level, line });
+  }
+
+  isPrintLog(message, meta) {
+    const printKeywords = [
+      'impressão', 'imprimir', 'print', 'copy /b', 'Arquivo RAW', 
+      'comando de impressão', 'enviada com sucesso'
+    ];
+    const msgStr = String(message).toLowerCase();
+    return printKeywords.some(keyword => msgStr.includes(keyword.toLowerCase()));
+  }
+
+  formatPrintLog(timestamp, level, message, meta) {
+    const separator = "=" .repeat(80);
+    let formattedLog = `\n${separator}\n`;
+    formattedLog += `[${timestamp}] [${level.toUpperCase()}] IMPRESSÃO\n`;
+    formattedLog += `${separator}\n`;
+    formattedLog += `📄 Ação: ${message}\n`;
+
+    if (meta) {
+      if (meta.impressora) {
+        formattedLog += `🖨️  Impressora: ${meta.impressora}\n`;
+      }
+      if (meta.queueName) {
+        formattedLog += `📋 Fila: ${meta.queueName}\n`;
+      }
+      if (meta.size) {
+        formattedLog += `📏 Tamanho: ${meta.size} bytes\n`;
+      }
+      if (meta.filePath) {
+        formattedLog += `📁 Arquivo: ${meta.filePath}\n`;
+      }
+      if (meta.cmd) {
+        formattedLog += `⚙️  Comando: ${meta.cmd}\n`;
+      }
+      if (meta.stdout) {
+        formattedLog += `✅ Resultado: ${meta.stdout.trim()}\n`;
+      }
+      if (meta.msg && meta.msg.length < 200) {
+        formattedLog += `📝 Conteúdo: ${meta.msg.substring(0, 100)}${meta.msg.length > 100 ? '...' : ''}\n`;
+      }
+      if (meta.error) {
+        formattedLog += `❌ Erro: ${meta.error}\n`;
+      }
+      if (meta.alvo) {
+        formattedLog += `🎯 Destino: ${JSON.stringify(meta.alvo, null, 2)}\n`;
+      }
+    }
+
+    formattedLog += `${separator}\n\n`;
+    return formattedLog;
   }
 
   info(msg, meta) { this.write("info", msg, meta); }

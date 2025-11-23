@@ -10,11 +10,19 @@ function verificarCompartilhamento(printerName) {
   return new Promise((resolve, reject) => {
     exec("net share", (error, stdout) => {
       if (error) {
-        logger.error("Falha ao verificar compartilhamento", { error: error.message });
+        logger.error("Falha na verificação de compartilhamento de impressora", { 
+          impressora: printerName,
+          erro: error.message,
+          comando: "net share"
+        });
         return reject(error.message);
       }
       const ok = stdout.toLowerCase().includes(printerName.toLowerCase());
-      logger.debug("Compartilhamento verificado", { printerName, ok });
+      logger.info("Verificação de compartilhamento concluída", { 
+        impressora: printerName, 
+        compartilhada: ok,
+        metodo: "net share"
+      });
       resolve(ok);
     });
   });
@@ -31,7 +39,11 @@ async function listarImpressoras() {
         const { stdout } = await execPromise(ps, { timeout: 10000 });
         nomes = stdout.split("\n").map(l => l.trim()).filter(Boolean);
       } catch (psError) {
-        logger.warn("Falha no PowerShell WMI, tentando método alternativo", { error: psError.message });
+        logger.warn("Método primário WMI falhou, tentando alternativa", { 
+          erro: psError.message,
+          metodoFalhou: "PowerShell WMI",
+          proximaTentativa: "módulo impressoras"
+        });
         
         // Segunda tentativa: usar a função já corrigida do módulo impressoras
         try {
@@ -39,7 +51,11 @@ async function listarImpressoras() {
           const impressoras = getPrinters();
           nomes = impressoras.map(p => p.Name).filter(Boolean);
         } catch (moduleError) {
-          logger.warn("Falha no módulo impressoras, usando fallback básico", { error: moduleError.message });
+          logger.warn("Método alternativo falhou, usando fallback final", { 
+            erro: moduleError.message,
+            metodoFalhou: "módulo impressoras",
+            ultimaTentativa: "PowerShell básico"
+          });
           
           // Terceira tentativa: fallback mais simples
           const fallbackPs = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-WmiObject -Class Win32_Printer | Select-Object -ExpandProperty Name"`;
@@ -52,7 +68,11 @@ async function listarImpressoras() {
       nomes = stdout.split("\n").map(l => l.trim()).filter(l => l && l !== "printer");
     }
     
-    logger.info("Impressoras listadas", { total: nomes.length });
+    logger.info("Listagem de impressoras concluída com sucesso", { 
+      totalEncontradas: nomes.length,
+      impressoras: nomes.slice(0, 5), // primeiras 5 para não poluir o log
+      sistemaOperacional: os.platform()
+    });
 
     return JSON.stringify({
       status: "success",
@@ -61,7 +81,12 @@ async function listarImpressoras() {
     });
   } catch (error) {
     erro(`Erro ao listar impressoras: ${error.message}`);
-    logger.error("Erro ao listar impressoras", { error: error.message });
+    logger.error("Falha crítica na listagem de impressoras", { 
+      erro: error.message,
+      stack: error.stack,
+      sistemaOperacional: os.platform(),
+      tentativasEsgotadas: true
+    });
     return JSON.stringify({
       status: "error",
       acao: "todasImpressoras"
