@@ -8,6 +8,7 @@ const { snapshotPrinters } = require("../helpers/impressoras");
 
 let wss = null;
 let isRunning = false;
+const PORTA_OCUPADA = "A impressão não conseguiu iniciar: outro programa está usando a porta 8080. Feche o outro PrayerApp aberto ou reinicie o computador.";
 
 // Diagnóstico simples da porta ocupada (Windows)
 async function diagnosePort(port = 8080) {
@@ -41,7 +42,7 @@ async function startWebSocketServer() {
     wss = new WebSocket.Server({ port: 8080 });
   } catch (e) {
     if (e && e.code === 'EADDRINUSE') {
-      erro("Porta 8080 já está em uso.");
+      erro(PORTA_OCUPADA);
       logger.error("Falha ao iniciar WebSocket: porta ocupada", {
         porta: 8080,
         erro: e.message,
@@ -58,6 +59,20 @@ async function startWebSocketServer() {
     });
     return false;
   }
+
+  // A porta ocupada não lança no construtor: chega depois, como evento. Sem este ouvinte o
+  // Electron mostrava "A JavaScript error occurred in the main process" na tela da loja.
+  wss.on("error", (e) => {
+    isRunning = false;
+    erro(e && e.code === "EADDRINUSE" ? PORTA_OCUPADA : "A impressão não conseguiu iniciar. Reinicie o PrayerApp ou o computador.");
+    logger.error("Falha no servidor WebSocket", {
+      porta: 8080,
+      erro: e && e.message,
+      code: e && e.code,
+      dica: "Verifique se outra instância do Prayer está aberta ou finalize o processo que usa a porta."
+    });
+    if (e && e.code === "EADDRINUSE") diagnosePort(8080);
+  });
 
   logger.info("Servidor WebSocket inicializado com sucesso", {
     porta: 8080,
@@ -139,10 +154,14 @@ async function startWebSocketServer() {
     });
   });
 
-  sucesso("Servidor WebSocket iniciado na porta 8080.");
-  logger.info("Sistema WebSocket totalmente operacional", {
-    porta: 8080,
-    status: "PRONTO_PARA_CONEXÕES"
+  // Só avisa "iniciado" quando a porta abriu de fato: antes o "Sucesso" saía e, um instante
+  // depois, o erro da porta ocupada.
+  wss.on("listening", () => {
+    sucesso("Servidor WebSocket iniciado na porta 8080.");
+    logger.info("Sistema WebSocket totalmente operacional", {
+      porta: 8080,
+      status: "PRONTO_PARA_CONEXÕES"
+    });
   });
   isRunning = true;
   return isRunning;
