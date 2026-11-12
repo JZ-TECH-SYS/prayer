@@ -80,6 +80,11 @@ if (!gotTheLock) {
 }
 
 app.whenReady().then(() => {
+  // Abre junto com o Windows: sem o PrayerApp aberto a térmica não imprime e alguém
+  // tinha de lembrar de abrir depois de cada reinício. Só no instalado (no dev registraria o electron cru).
+  // Mesmo padrão do jv-printer e do gerenciador-myzap (path + --autostart + enabled).
+  if (!isDev) app.setLoginItemSettings({ openAtLogin: true, enabled: true, path: process.execPath, args: ["--autostart"] });
+
   trayController.init();
   logger.info("🚀 Prayer System iniciado - Tray criado com ícones");
 
