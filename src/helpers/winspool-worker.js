@@ -3,7 +3,9 @@
 // Fala direto com o spooler do Windows (winspool.drv) via koffi, numa worker thread.
 // Por que numa worker: OpenPrinter numa impressora de rede fora do ar pode demorar; aqui isso
 // nunca trava o processo principal do Electron (antes o execSync do PowerShell travava tudo).
-// As mensagens são atendidas uma por vez, então os jobs entram na fila na ordem em que chegaram.
+// Cada worker atende um pedido por vez; o winspool.js mantém vários workers e garante a ordem
+// por impressora (o próximo job só chama StartDocPrinter depois que o anterior recebeu o número).
+// No print, avisa {fase:"iniciado"} logo após o StartDocPrinter e depois manda o resultado final.
 
 const { parentPort } = require("worker_threads");
 const koffi = require("koffi");
@@ -120,7 +122,7 @@ function listar(detalhado) {
   }));
 }
 
-function imprimirRaw(impressora, dados, documento) {
+function imprimirRaw(impressora, dados, documento, aoIniciar) {
   const h = [null];
   if (!OpenPrinterW(impressora, h, null)) throw falha("OpenPrinter");
   let docAberto = false;
@@ -128,6 +130,8 @@ function imprimirRaw(impressora, dados, documento) {
     const jobId = StartDocPrinterW(h[0], 1, { pDocName: documento || "PrayerApp RAW", pOutputFile: null, pDatatype: "RAW" });
     if (!jobId) throw falha("StartDocPrinter");
     docAberto = true;
+    // O número do job (ordem na fila) já está definido: o próximo job da mesma impressora pode começar.
+    aoIniciar(jobId);
     if (!StartPagePrinter(h[0])) throw falha("StartPagePrinter");
     const buf = Buffer.from(dados);
     const escritos = [0];
@@ -157,7 +161,11 @@ parentPort.on("message", (msg) => {
   try {
     let result;
     if (op === "list") result = listar(!!msg.detalhado);
-    else if (op === "print") result = imprimirRaw(msg.impressora, msg.dados, msg.documento);
+    else if (op === "print") {
+      result = imprimirRaw(msg.impressora, msg.dados, msg.documento, (jobId) =>
+        parentPort.postMessage({ id, fase: "iniciado", jobId, ms: Date.now() - inicio })
+      );
+    }
     else throw new Error(`operação desconhecida: ${op}`);
     parentPort.postMessage({ id, ok: true, result, ms: Date.now() - inicio });
   } catch (e) {
