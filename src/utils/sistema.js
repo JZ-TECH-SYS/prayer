@@ -32,37 +32,12 @@ async function listarImpressoras() {
   try {
     let nomes = [];
     if (os.platform() === "win32") {
-      // Usar método seguro que evita problemas com Get-Printer
-      try {
-        // Primeira tentativa: PowerShell com WMI (mais confiável)
-        const ps = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-WmiObject -Class Win32_Printer | ForEach-Object { $_.Name }"`;
-        const { stdout } = await execPromise(ps, { timeout: 10000 });
-        nomes = stdout.split("\n").map(l => l.trim()).filter(Boolean);
-      } catch (psError) {
-        logger.warn("Método primário WMI falhou, tentando alternativa", {
-          erro: psError.message,
-          metodoFalhou: "PowerShell WMI",
-          proximaTentativa: "módulo impressoras"
-        });
-
-        // Segunda tentativa: usar a função já corrigida do módulo impressoras
-        try {
-          const { getPrinters } = require("../helpers/impressoras");
-          const impressoras = getPrinters();
-          nomes = impressoras.map(p => p.Name).filter(Boolean);
-        } catch (moduleError) {
-          logger.warn("Método alternativo falhou, usando fallback final", {
-            erro: moduleError.message,
-            metodoFalhou: "módulo impressoras",
-            ultimaTentativa: "PowerShell básico"
-          });
-
-          // Terceira tentativa: fallback mais simples
-          const fallbackPs = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-WmiObject -Class Win32_Printer | Select-Object -ExpandProperty Name"`;
-          const { stdout } = await execPromise(fallbackPs, { timeout: 5000 });
-          nomes = stdout.split("\n").map(l => l.trim()).filter(Boolean);
-        }
-      }
+      // Spooler do Windows (winspool) numa worker thread; o PowerShell assíncrono fica só
+      // como reserva dentro do getPrinters. Nada aqui trava o processo principal.
+      const { getPrinters, clearPrintersCache } = require("../helpers/impressoras");
+      clearPrintersCache(); // a lista pedida pelo cliente sempre reflete o Windows agora
+      const impressoras = await getPrinters();
+      nomes = impressoras.map(p => p.Name).filter(Boolean);
     } else {
       const { stdout } = await execPromise("lpstat -p");
       nomes = stdout.split("\n").map(l => l.trim()).filter(l => l && l !== "printer");

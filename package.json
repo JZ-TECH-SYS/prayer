@@ -1,6 +1,6 @@
 {
   "name": "prayer",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Gerenciador de Impressão Via Socket",
   "main": "./src/main.js",
   "scripts": {
@@ -16,6 +16,7 @@
   "dependencies": {
     "electron-updater": "^6.3.1",
     "iconv-lite": "^0.6.3",
+    "koffi": "^2.16.4",
     "pdf-to-printer": "^5.6.0",
     "puppeteer": "^24.9.0",
     "ws": "^8.18.0"
@@ -31,7 +32,15 @@
     "files": [
       "src/**/*",
       "src/img/**/*",
-      "main.js"
+      "main.js",
+      "!node_modules/koffi/build/koffi/!(win32_x64)/**",
+      "!node_modules/koffi/src/**",
+      "!node_modules/koffi/vendor/**",
+      "!node_modules/koffi/doc/**"
+    ],
+    "asarUnpack": [
+      "node_modules/koffi/**",
+      "src/helpers/winspool-worker.js"
     ],
     "appId": "com.prayer.app",
     "productName": "PrayerApp",
@@ -45,7 +54,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "JZ-TECH-SYS",
+        "owner": "LuanHenriqueGarcia",
         "repo": "prayer",
         "releaseType": "release"
       }
