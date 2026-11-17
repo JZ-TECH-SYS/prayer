@@ -54,7 +54,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "JZ-TECH-SYS",
+        "owner": "LuanHenriqueGarcia",
         "repo": "prayer",
         "releaseType": "release"
       }

@@ -7,7 +7,7 @@ Desktop agent em Electron para orquestrar impressões locais via WebSocket e uti
 - **Gerenciamento pela bandeja**: iniciar/parar o servidor, abrir ferramentas, consultar versão instalada e disparar busca de atualizações.
 - **Servidor WebSocket** (`src/core/socket.js`): responde a ações de listagem/ impressão, inclusive comandos RAW (ZPL, EPL, ESC/POS) e HTML renderizado.
 - **Ferramentas visuais**: log viewer e printer tester com tema escuro, agora carregando CSS/JS dedicados em `src/assets/css` e `src/assets/js`.
-- **Auto-update**: `electron-updater` configurado para consumir releases do repositório `JZ-TECH-SYS/prayer`, garantindo que o instalador gerado pelo `electron-builder` corresponda ao nome esperado pelo atualizador.
+- **Auto-update**: `electron-updater` configurado para consumir releases do repositório `LuanHenriqueGarcia/prayer`, garantindo que o instalador gerado pelo `electron-builder` corresponda ao nome esperado pelo atualizador.
 - **Logs estruturados**: toda a telemetria é gravada em `%TEMP%/prayer` via `src/core/logger.js`, utilizada pelo tray e log viewer.
 
 ## 🧱 Estrutura em destaque
@@ -35,7 +35,7 @@ src/
 ## 📦 Instalação e desenvolvimento
 
 ```bash
-git clone https://github.com/JZ-TECH-SYS/prayer.git
+git clone https://github.com/LuanHenriqueGarcia/prayer.git
 cd prayer
 npm install
 
