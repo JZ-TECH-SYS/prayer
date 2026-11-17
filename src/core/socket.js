@@ -118,7 +118,7 @@ async function startWebSocketServer() {
       try {
         // rota de debug de impressoras
         if (dados.acao === "debug/printers") {
-          snapshotPrinters(logger);
+          await snapshotPrinters(logger);
           return ws.send(JSON.stringify({ status: "ok", acao: "debug/printers" }));
         }
 

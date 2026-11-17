@@ -26,7 +26,7 @@ function openPrinterTester() {
           clearPrintersCache();
         }
 
-        const list = getPrinters();
+        const list = await getPrinters();
         return { status: "success", data: list };
       } catch (e) {
         logger.error("Falha ao listar impressoras (UI)", { error: e && e.message });

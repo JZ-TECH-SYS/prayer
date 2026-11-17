@@ -8,6 +8,7 @@ const iconv = require("iconv-lite");
 const { print } = require("pdf-to-printer");
 const { logger, getLogDir } = require("../core/logger");
 const { resolvePrinter, snapshotPrinters } = require("../helpers/impressoras");
+const { disponivel, imprimirRawSpooler } = require("../helpers/winspool");
 function criarArquivoTemporario(buffer, ext, contextoLog) {
   const erros = [];
   const baseLogDir =
@@ -68,9 +69,9 @@ async function imprimirCuponTermica(base64, impressora) {
 
   try {
     // snapshot para contexto
-    snapshotPrinters(logger);
+    await snapshotPrinters(logger);
 
-    const alvo = resolvePrinter(impressora);
+    const alvo = await resolvePrinter(impressora);
     if (!alvo || !alvo.queueName) {
       logger.error("Impressora não localizada no sistema", {
         impressoraSolicitada: impressora,
@@ -151,7 +152,7 @@ async function imprimirTexto(dados) {
   // Resolução canônica do destino
   let alvo;
   try {
-    alvo = resolvePrinter(impressora);
+    alvo = await resolvePrinter(impressora);
   } catch (e) {
     logger.error("Nome de impressora inválido", {
       error: e.message,
@@ -164,8 +165,48 @@ async function imprimirTexto(dados) {
     return { status: "error", message: "Impressora não localizada" };
   }
 
-  // converte msg (UTF-8) para CP850
+  // Mantém os mesmos bytes das versões anteriores (texto em UTF-8).
   const buffer = iconv.encode(msg, "UTF-8");
+
+  // 1) Caminho principal: direto no spooler (OpenPrinter/StartDocPrinter RAW/WritePrinter).
+  //    Não depende de compartilhamento nem de \\localhost, não abre processo externo e o job
+  //    entra na fila do Windows na hora.
+  if (alvo.queueName && disponivel()) {
+    const inicio = Date.now();
+    try {
+      const r = await imprimirRawSpooler(alvo.queueName, buffer, "PrayerApp RAW");
+      logger.info("Impressão concluída com sucesso", {
+        impressora,
+        queueName: alvo.queueName,
+        jobId: r.jobId,
+        bytes: r.bytes,
+        ms: Date.now() - inicio,
+        metodo: "winspool WritePrinter (RAW)",
+      });
+      return { status: "success", message: "Impresso com sucesso", acao: "imprimir", jobId: r.jobId };
+    } catch (e) {
+      logger.error("Falha ao imprimir pelo spooler", {
+        impressora,
+        queueName: alvo.queueName,
+        erro: e.message,
+        win32: e.win32,
+        etapa: e.etapa,
+        ms: Date.now() - inicio,
+        metodo: "winspool WritePrinter (RAW)",
+      });
+      // Só tenta o compartilhamento se houver um; sem ele, devolve o erro real ao cliente.
+      if (!alvo.sharePath) {
+        return { status: "error", message: `Falha de impressão: ${e.message}`, acao: "imprimir" };
+      }
+    }
+  }
+
+  // 2) Destino UNC (\\servidor\share não instalado como fila) ou spooler indisponível:
+  //    copy /b para o compartilhamento. Sem print.exe: ele "imprime" num arquivo e responde sucesso.
+  if (!alvo.sharePath) {
+    return { status: "error", message: "Impressora sem fila nem compartilhamento utilizável", acao: "imprimir" };
+  }
+
   const filePath = criarArquivoTemporario(buffer, "txt", { tipo: "RAW" });
   if (!filePath) {
     return {
@@ -173,87 +214,41 @@ async function imprimirTexto(dados) {
       message: "Falha ao criar arquivo temporário (TXT)",
     };
   }
-  const hex = Buffer.from(String(impressora), "utf8").toString("hex");
-  logger.info("Arquivo temporário preparado para impressão", {
-    impressora,
-    filePath,
-    bytes: buffer.length,
-    nomeHex: hex,
-    alvo,
-    msg: msg.substring(0, 150) // primeiros 150 chars do conteúdo
-  });
 
   return new Promise((resolve) => {
-    // Preferir COMPARTILHAMENTO (UNC) para RAW
-    const destino = alvo.sharePath || `\\\\localhost\\${alvo.queueName}`;
+    const destino = alvo.sharePath;
     const cmd = `copy /b "${filePath}" "${destino}"`;
+    const inicio = Date.now();
 
-    logger.info("Iniciando envio para impressora", {
+    logger.info("Iniciando envio para compartilhamento", {
       impressora,
       cmd,
       destino,
-      queueName: alvo.queueName
+      queueName: alvo.queueName,
     });
 
-    exec(cmd, (error, stdout, stderr) => {
+    exec(cmd, { timeout: 30000, windowsHide: true }, (error, stdout, stderr) => {
+      try { fs.unlinkSync(filePath); } catch (_) { }
       if (error) {
-        console.error("Erro ao imprimir:", error.message);
-        logger.error("Falha no método primário de impressão", {
+        logger.error("Falha ao imprimir pelo compartilhamento", {
           impressora,
           erro: error.message,
           stdout,
           stderr,
           destino,
+          ms: Date.now() - inicio,
           metodo: "copy /b",
-          tentandoFallback: !!alvo.queueName
         });
-        // Fallback opcional: tentar print.exe pela fila (para texto simples)
-        if (alvo.queueName) {
-          const fallback = `print /d:"${alvo.queueName}" "${filePath}"`;
-          logger.warn("Executando método alternativo de impressão", {
-            impressora,
-            comandoFallback: fallback,
-            metodo: "print.exe",
-            motivo: "copy /b falhou"
-          });
-          return exec(fallback, (err2, out2, errOut2) => {
-
-            if (err2) {
-              logger.error("Todos os métodos de impressão falharam", {
-                impressora,
-                erroFallback: err2.message,
-                saidaFallback: out2,
-                erroSaidaFallback: errOut2,
-                metodosTestados: ["copy /b", "print.exe"]
-              });
-              return resolve({ status: "error", message: error.message });
-            }
-            logger.info("Impressão concluída via método alternativo", {
-              impressora,
-              metodo: "print.exe",
-              saida: out2,
-              status: "SUCESSO_FALLBACK"
-            });
-            return resolve({
-              status: "success",
-              message: "Impresso com sucesso (fallback)",
-              acao: "imprimir",
-            });
-          });
-        }
-
-        return resolve({
-          status: "error",
-          message: `Falha de impressão: ${error.message}`,
-        });
+        return resolve({ status: "error", message: `Falha de impressão: ${error.message}`, acao: "imprimir" });
       }
 
       logger.info("Impressão concluída com sucesso", {
         impressora,
-        queueName: alvo.queueName,
+        destino,
         stdout: stdout.trim(),
         bytes: buffer.length,
-        metodo: "copy /b"
+        ms: Date.now() - inicio,
+        metodo: "copy /b",
       });
       resolve({
         status: "success",
